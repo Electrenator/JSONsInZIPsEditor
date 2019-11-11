@@ -1,9 +1,19 @@
 from zipfile import ZipFile as zipFile
 import os, random, json, time, shutil
 
-''' TODO:
-        - Add some kind of user input
+''' Replacement search values:
+        For a string do 'version' or "version".
+        For a int give only a number like 90.
+        For a json list give the input like like this; [item1, item2, item3].
+        For a json object put in {"key":"value", "key2":"value"}
+
+    To use the values input it into the following 2 variables.
+    Be aware that this program doesn't check the input so please make a backup before its run in a folder
 '''
+replaceSearchKey = None     # like: "Version"
+replaceValueWith = None     # Like: {"OS": 404, "game": 101}
+                            #   Or: 420
+
 
 def searchDirFor(directory, startsW, endsW):
     ''' Searches recursively in the specified directory for files that start with "startW" and end with "endsW" '''
@@ -40,7 +50,7 @@ def getFileName(directory):
 
 def jsonChangeValue(file, key, value):
     ''' Reads specified json file, changes it and saves that change '''
-    print(f'{timeStamp(timeStart)} Changing \'{key}\' to \'{value}\' in "{file}"', end='...    ')
+    print(f'{timeStamp(timeStart)} Changing \'{key}\' to \'{value}\' in "{file}"', end=printEnd())
     try:
         with open(file, 'r+') as f:
             try:
@@ -82,7 +92,13 @@ def timeStamp(timeStart):
 
 
 def printEnd():
-    return "...    "
+    return '...    '
+
+
+
+''' TODO:
+        - Add some kind of better user input
+'''
 
 
 timeStart = time.time()
@@ -106,7 +122,7 @@ for i in range(len(allZips)):
     tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
 
     # Extract currently processing zip file
-    print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end='...    ')
+    print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=printEnd())
     with zipFile(allZips[i], 'r') as zip:
         try:
             zip.extractall(tempCurrentDir)
@@ -123,13 +139,13 @@ for i in range(len(allZips)):
     # Look threw all JSONs and replace specefied thing
     for j in range(len(allJsons)):
         try:
-            jsonChangeValue(allJsons[j], 'version', 404)
+            jsonChangeValue(allJsons[j], replaceSearchKey, replaceValueWith)
         except Exception as e:
             print("failed!")
             failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
 
     # Rezip extracted zip
-    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i-1]}"', end="...    ")
+    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i-1]}"', end=printEnd())
     with zipFile(allZips[i], 'w') as zip:
         try:
             for j in os.listdir(tempCurrentDir):
