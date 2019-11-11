@@ -1,13 +1,8 @@
-from zipfile import ZipFile as zipFile 
-import os
-import random
-import json
-import time
-import shutil
+from zipfile import ZipFile as zipFile
+import os, random, json, time, shutil
 
 ''' TODO:
-        - Add function to skip broken json files and display it at end
-        - Add function to skip broken zip files and display it at end
+        - Add some kind of user input
 '''
 
 def searchDirFor(directory, startsW, endsW):
@@ -77,7 +72,7 @@ def searchAndReplace(var, searchKey, newValue):
                 var[key] = newValue
             elif type(var[key]) == dict:
                 var[key] = searchAndReplace(var[key], searchKey, newValue)
-        return var            
+        return var
     else:
         raise TypeError('Input not a dict (the only dicts are suported)')
 
@@ -105,16 +100,18 @@ print(f'{timeStamp(timeStart)} Using temporary directory: "{tempDir}/"')
 
 
 # Processes all the zip files
+failed = [["Operation", "File", "Error type", "Error value"]]
 for i in range(len(allZips)):
     # Get temporary current directory
     tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
 
     # Extract currently processing zip file
-    print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"',
-            end='...    ')
+    print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end='...    ')
     with zipFile(allZips[i], 'r') as zip:
         try:
             zip.extractall(tempCurrentDir)
+        except Exception as e:
+            failed.append(["extracting", allZips[i], type(e).__name__, str(e)])
         finally:
             zip.close()
     print('done!')
@@ -125,7 +122,11 @@ for i in range(len(allZips)):
 
     # Look threw all JSONs and replace specefied thing
     for j in range(len(allJsons)):
-        jsonChangeValue(allJsons[j], 'version', 404)
+        try:
+            jsonChangeValue(allJsons[j], 'version', 404)
+        except Exception as e:
+            print("failed!")
+            failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
 
     # Rezip extracted zip
     print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i-1]}"', end="...    ")
@@ -133,6 +134,8 @@ for i in range(len(allZips)):
         try:
             for j in os.listdir(tempCurrentDir):
                 zip.write(os.path.join(tempCurrentDir, j), arcname=j)
+        except Excepton as e:
+            failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
         finally:
             zip.close()
     print('done!')
@@ -145,9 +148,19 @@ for i in range(len(allZips)):
 
 # Remove temp dir fully
 print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=printEnd())
-os.rmdir(tempDir)
-print('done!')
+try:
+    os.rmdir(tempDir)
+    print('done!')
+except Exception as e:
+    print('failed!')
+    failed.append(["removing", tempDir, type(e).__name__, str(e)])
 
+print('\n'*2+'-='*5, 'SCRIPT FINISHED', '=-'*5+'\n')
 
-print('\n'*2+'-='*5, 'SCRIPT FINISHED', '=-'*5)
-print(f'\nExecution took: {round(time.time()-timeStart, 6)} seconds')
+if len(failed) > 1:
+    temp = 'S' if len(failed)==1 else ''
+    print(f'WITH ERROR{temp}'+'=-'*4)
+    for i in range(len(failed)-1):
+        print(f'\tGot {failed[i+1][2]} error "{failed[i+1][3]}" while {failed[i+1][0]} file "{failed[i+1][1]}"\n')
+
+print(f'\nExecution of script took: {round(time.time()-timeStart, 6)} seconds\n')
