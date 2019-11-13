@@ -3,19 +3,6 @@ from zipfile import ZipFile as zipFile
 import os, random, json, time, shutil
 
 
-''' Replacement search values:
-        For a string do 'version' or "version".
-        For a int give only a number like 90.
-        For a json list give the input like like this; [item1, item2, item3].
-        For a json object put in {"key":"value", "key2":"value"}
-
-    To use the values input it into the following 2 variables.
-    Be aware that this program doesn't check the input so please make a backup before its run in a folder
-'''
-replaceSearchKey = None     # like: "Version"
-replaceValueWith = None     # Like: {"OS": 404, "game": 101}
-                            #   Or: 420
-
 
 def searchDirFor(directory, startsW, endsW):
     ''' Searches recursively in the specified directory for files that start with "startW" and end with "endsW" '''
