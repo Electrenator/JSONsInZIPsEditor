@@ -1,5 +1,7 @@
+#!/usr/bin/python3
 from zipfile import ZipFile as zipFile
 import os, random, json, time, shutil
+
 
 ''' Replacement search values:
         For a string do 'version' or "version".
@@ -95,13 +97,61 @@ def printEnd():
     return '...    '
 
 
+def isValidJSON(data):
+    try:
+        json.loads(data)
+        return True
+    except:
+        return False
 
-''' TODO:
-        - Add some kind of better user input
-'''
+
+def getInputJSON():
+    inputKey = input('Input JSON key: ').replace("'",'"')
+    inputValue = input('Input new JSON value: ').replace("'",'"')
+    inputData = '{'+f'{inputKey}:{inputValue}'+'}'
+
+    if isValidJSON(inputData) == True:
+        return inputKey.replace('"',"'").replace("'",""), inputData
+    else:
+        print('\nThis input will give you the following invalid JSON data:', '\n{'+inputKey.replace('"',"'")+':'+inputValue.replace('"',"'")+'}\n'+'Please give a valid JSON value and key\n')
+        return getInputJSON()
 
 
+def getConformation(q):
+    a = input(str(q)+" (y or n) ")
+    if "y" == a.lower() or "yes" == a.lower():
+        return True
+    elif "n" == a.lower() or "no" == a.lower():
+        return False
+    else:
+        print("That doesn't look like a conformation. Please put one in")
+        return getConformation(q)
+
+
+# Get user input
+try:
+    inputArray = getInputJSON()
+    inputKey = inputArray[0]
+    inputData = json.loads(inputArray[1])
+    inputValue = inputData.get(inputKey)
+except KeyboardInterrupt:
+    print("")
+    exit(0)
+
+
+# Imput conformation
+conf = getConformation(f"\nThe key {inputKey} will be set to \"{inputValue}\". This will result in:\n{inputData}\n\nAre you sure this is what you want?")
+
+if conf == False:
+    print("Exiting...")
+    exit(0)
+print("\n")
+
+# Start timer
 timeStart = time.time()
+
+
+# Get zips in current and lower dirs
 allZips = searchDirFor('./', '', '.zip')
 displayArray(allZips, f'Found {len(allZips)} zips')
 
@@ -139,7 +189,7 @@ for i in range(len(allZips)):
     # Look threw all JSONs and replace specefied thing
     for j in range(len(allJsons)):
         try:
-            jsonChangeValue(allJsons[j], replaceSearchKey, replaceValueWith)
+            jsonChangeValue(allJsons[j], inputKey, inputValue)
         except Exception as e:
             print("failed!")
             failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
