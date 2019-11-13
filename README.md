@@ -18,7 +18,7 @@ Inputs need to be in correct JSON before the program can make use of the input s
 The only way to input keys is to use the JSON syntax for a string. This would be like `'key'` but the program also accepts `"key"`, with it translates to the JSON version.
 
 ### The input of values
-Values are a bit more free. These can use all the JSON data storing types as input, like objects, arrays, strings, numbers and binaries. You can input it in the same way as done in JSON files but `"string"` is also allowed as a string input. For more infor look [here on json.org](https://www.json.org/)
+Values are a bit more free. These can use all the JSON data storing types as input, like objects, arrays, strings, numbers and binaries. You can input it in the same way as done in JSON files but `"string"` is also allowed as a string input. For more info look [here on json.org](https://www.json.org/)
 
 
 ## Windows issue
