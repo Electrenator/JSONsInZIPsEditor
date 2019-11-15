@@ -37,40 +37,43 @@ def getFileName(directory):
 
 
 def jsonChangeValue(file, key, value):
-
-
-
-    '''TODO:
-            - Rewrite this so that things with less lines can overwrite things with more lines
-                \ like: list to string or into
-                    \ Will now give invalid JSON becouse it doesn't take into account the length of a file before filling.
-                        \ may be fixed by reading than emptying and then writing in that order instead of all at ones in the function.
-    '''
-
-
-
     ''' Reads specified json file, changes it and saves that change '''
     print(f'{timeStamp(timeStart)} Changing \'{key}\' to \'{value}\' in "{file}"', end=printEnd())
+
+    # Read data
+    useEncoding = None
     try:
-        with open(file, 'r+') as f:
+        with open(file, 'r') as f:
             try:
                 data = json.loads(f.read())
-                f.seek(0)
-                data = searchAndReplace(data, key, value)
-
-                json.dump(data, f, indent=4)
             finally:
                 f.close()
     except ValueError:
-        with open(file, 'r+', encoding='utf-8-sig') as f:
+        with open(file, 'r', encoding='utf-8-sig') as f:
             try:
                 data = json.loads(f.read())
-                f.seek(0)
-                data = searchAndReplace(data, key, value)
+                useEncoding = 'utf-8-sig'
+            finally:
+                f.close()
 
+    # Change data
+    data = searchAndReplace(data, key, value)
+
+    # Rewrite data
+    # (truncates/removes existing data in file)
+    if useEncoding != None:
+        with open(file, 'w', encoding=useEncoding) as f:
+            try:
                 json.dump(data, f, indent=4)
             finally:
                 f.close()
+    else:
+        with open(file, 'w') as f:
+            try:
+                json.dump(data, f, indent=4)
+            finally:
+                f.close()
+
     print('done!')
 
 
