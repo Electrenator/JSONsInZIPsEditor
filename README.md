@@ -15,7 +15,7 @@ But please keep in mind that it can still make mistakes when the values smaller 
 Inputs need to be in correct JSON before the program can make use of the input so that it can also replace the key with the value in valid JSON.
 
 ### The input of keys
-The only way to input keys is to use the JSON syntax for a string. This would be `"key"` but the program also accepts `'key'`, with will be translated to the JSON syntax version.
+The only way to input keys is to use the JSON syntax for a string. This would be `"key"` but the program also accepts `'key'`, which will be translated to the JSON syntax version.
 
 ### The input of values
 Values are a bit more free. These can use all the JSON data storing types as input, like objects, arrays, strings, numbers and binaries. You can input it in the same way as done in JSON files but `'string'` is also allowed as a string input. For more info look [here on json.org](https://www.json.org/)

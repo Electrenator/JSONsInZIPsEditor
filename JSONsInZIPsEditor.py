@@ -38,7 +38,7 @@ def getFileName(directory):
 
 def jsonChangeValue(file, key, value):
     ''' Reads specified json file, changes it and saves that change '''
-    print(f'{timeStamp(timeStart)} Changing \'{key}\' to \'{value}\' in "{file}"', end=printEnd())
+    print(f'{timeStamp(timeStart)} Changing "{key}" to '+str(value).replace("'",'"')+f' in "{file}"', end=printEnd())
 
     # Read data
     useEncoding = None
@@ -112,9 +112,9 @@ def getInputJSON():
     inputData = '{'+f'{inputKey}:{inputValue}'+'}'
 
     if isValidJSON(inputData) == True:
-        return inputKey.replace('"',"'").replace("'",""), inputData
+        return inputKey.replace('"',"").replace("'",""), inputData
     else:
-        print('\nThis input will give you the following invalid JSON data:', '\n{'+inputKey.replace('"',"'")+':'+inputValue.replace('"',"'")+'}\n'+'Please give a valid JSON value and key\n')
+        print('\nThis input will give you the following invalid JSON data:', '\n{'+inputKey+':'+inputValue+'}\n'+'Please give a valid JSON value and JSON key\n')
         return getInputJSON()
 
 
@@ -145,10 +145,10 @@ def main():
 
 
     # Imput conformation
-    conf = getConformation(f"\nThe key {inputKey} will be set to \"{inputValue}\". This will result in:\n{inputData}\n\nAre you sure this is what you want?")
+    conf = getConformation(f'\nThe key "{inputKey}" will be set to '+str(inputValue).replace("'",'"')+'. This will result in:\n'+str(inputData).replace("'",'"')+'\n\nAre you sure this is what you want?')
 
     if conf == False:
-        print("Exiting...")
+        print('Exiting...')
         exit(0)
     print("\n")
 
@@ -171,7 +171,7 @@ def main():
 
 
     # Processes all the zip files
-    failed = [["Operation", "File", "Error type", "Error value"]]
+    failed = [['Operation', 'File', 'Error type', 'Error value']]
     for i in range(len(allZips)):
         # Get temporary current directory
         tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
