@@ -78,16 +78,22 @@ def jsonChangeValue(file, key, value):
 
 
 def searchAndReplace(var, searchKey, newValue):
-    ''' Searches and replaces values in a dictionary with the specified key '''
+    ''' Searches and replaces values in a dictionary and lists with the specified key '''
     if type(var) == dict:
         for key in var.keys():
             if key == searchKey:
                 var[key] = newValue
-            elif type(var[key]) == dict:
+            elif type(var[key]) == dict or type(var[key]) == list:
                 var[key] = searchAndReplace(var[key], searchKey, newValue)
         return var
+    elif type(var) == list:
+        for item in var:
+            i = var.index(item)
+            if type(var[i]) == dict or type(var[i]) == list:
+                var[i] = searchAndReplace(var[i], searchKey, newValue)
+        return var
     else:
-        raise TypeError('Input not a dict (the only dicts are suported)')
+        raise TypeError('Input not a dict or list (the only dicts and lists are suported)')
 
 
 def timeStamp(timeStart):
