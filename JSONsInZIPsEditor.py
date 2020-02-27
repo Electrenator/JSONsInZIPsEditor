@@ -206,7 +206,7 @@ def main():
                 failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
 
         # Rezip extracted zip
-        print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i-1]}"', end=printEnd())
+        print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
         with zipFile(allZips[i], 'w') as zip:
             try:
                 for j in os.listdir(tempCurrentDir):
