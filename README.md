@@ -19,7 +19,3 @@ The only way to input keys is to use the JSON syntax for a string. This would be
 
 ### The input of values
 Values are a bit more free. These can use all the JSON data storing types as input, like objects, arrays, strings, numbers and binaries. You can input it in the same way as done in JSON files but `'string'` is also allowed as a string input. For more info look [here on json.org](https://www.json.org/)
-
-
-## Windows issue
-The windows bash some how doesn't delete directorys with `shutil.rmtree()` on Any of the base windows shells (CMD & PowerShell). This script does work on the Windows Debian shell but on the default command lines on Windows you will get a OSError `The directory is not empty` error when it tries to delete the remaining temporary directory windows. This directory can be deleted manually after the script has finished.
