@@ -9,7 +9,7 @@ def searchDirFor(directory, startsW, endsW):
 
     for file in os.listdir(directory):
         if (file.endswith(endsW) and file.startswith(startsW)):
-            foundTarget.append(os.path.join(directory, file));
+            foundTarget.append(os.path.join(directory, file))
 
         elif (os.path.isdir(os.path.join(directory, file))):
             foundTarget += searchDirFor(os.path.join(directory, file), startsW, endsW)
@@ -211,7 +211,7 @@ def main():
             try:
                 for j in os.listdir(tempCurrentDir):
                     zip.write(os.path.join(tempCurrentDir, j), arcname=j)
-            except Excepton as e:
+            except Exception as e:
                 failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
             finally:
                 zip.close()
