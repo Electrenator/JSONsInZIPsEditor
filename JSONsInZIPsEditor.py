@@ -228,9 +228,13 @@ def main():
     try:
         os.rmdir(tempDir)
         print('done!')
-    except Exception as e:
-        print('failed!')
-        failed.append(["removing", tempDir, type(e).__name__, str(e)])
+    except OSError as e:
+        if e.errno == 41:
+            # Direcory not empty. Removing it with remaining tree
+            shutil.rmtree(tempDir)
+        else:
+            print('failed!')
+            failed.append(["removing", tempDir, type(e).__name__, str(e)])
 
     print('\n'*2+'-='*5, 'SCRIPT FINISHED', '=-'*5+'\n')
 
