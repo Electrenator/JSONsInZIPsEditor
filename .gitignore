@@ -1,3 +1,6 @@
 __pycache__
 *.swp
+venv/
+.vscode/
 temp*/
+test_zips/
