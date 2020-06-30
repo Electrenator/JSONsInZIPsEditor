@@ -2,6 +2,12 @@
 from zipfile import ZipFile as zipFile
 import os, random, json, time, shutil
 
+'''TODO:
+    - Add support for command-line options (And add --help of course)
+    - Add option for verbose instead of spamming a log (-v)
+    - Add option for only checking the JSON files (--check-only)
+    - Add support for putting replacement key and variable in as a command-line variable
+'''
 
 def searchDirFor(directory, startsW, endsW):
     ''' Searches recursively in the specified directory for files that start with "startW" and end with "endsW" '''
@@ -19,14 +25,15 @@ def searchDirFor(directory, startsW, endsW):
 def displayArray(array, description):
     ''' Does as the name says with a nice & readable format '''
     temp = ''
-    for i in range(len(array)):
+    lenArray = len(array)
+    for i in range(lenArray):
         if len(temp) == 0:
             temp += '"'+array[i]+'"'
-        elif i+1 == len(array):
+        elif i+1 == lenArray:
             temp += ' and "'+array[i]+'"'
         else:
             temp += ', "'+array[i]+'"'
-    print(timeStamp(timeStart),description+':', temp)
+    print(timeStamp(timeStart), description+(':' if lenArray != 0 else ''), temp)
 
 
 def getFileName(directory):
@@ -164,7 +171,8 @@ def main():
 
     # Get zips in current and lower dirs
     allZips = searchDirFor('./', '', '.zip')
-    displayArray(allZips, f'Found {len(allZips)} zips')
+    lenAllZips = len(allZips)
+    displayArray(allZips, f'Found {lenAllZips} zip'+ ('s' if lenAllZips != 1 else ''))
 
 
     # Gets temporary directory
@@ -173,75 +181,80 @@ def main():
         print(f'{timeStamp(timeStart)} Diractory "{tempDir}/" already exists, looking for new temp directory')
         tempDir += str(random.randint(0,9))
 
-    print(f'{timeStamp(timeStart)} Using temporary directory: "{tempDir}/"')
 
-
-    # Processes all the zip files
+    # Processes all the zip files if found
     failed = [['Operation', 'File', 'Error type', 'Error value']]
-    for i in range(len(allZips)):
-        # Get temporary current directory
-        tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
 
-        # Extract currently processing zip file
-        print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=printEnd())
-        with zipFile(allZips[i], 'r') as zip:
-            try:
-                zip.extractall(tempCurrentDir)
-            except Exception as e:
-                failed.append(["extracting", allZips[i], type(e).__name__, str(e)])
-            finally:
-                zip.close()
-        print('done!')
+    if lenAllZips > 0:
+        print(f'{timeStamp(timeStart)} Using temporary directory: "{tempDir}/"')
 
-        # Get JSON files of extracted zip
-        allJsons = searchDirFor(tempCurrentDir, '', '.json')
-        displayArray(allJsons, f'Found {len(allJsons)} jsons')
+        for i in range(lenAllZips):
+            # Get temporary current directory
+            tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
 
-        # Look threw all JSONs and replace specefied thing
-        for j in range(len(allJsons)):
-            try:
-                jsonChangeValue(allJsons[j], inputKey, inputValue)
-            except Exception as e:
-                print("failed!")
-                failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
+            # Extract currently processing zip file
+            print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=printEnd())
+            with zipFile(allZips[i], 'r') as zip:
+                try:
+                    zip.extractall(tempCurrentDir)
+                except Exception as e:
+                    failed.append(["extracting", allZips[i], type(e).__name__, str(e)])
+                finally:
+                    zip.close()
+            print('done!')
 
-        # Rezip extracted zip
-        print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
-        with zipFile(allZips[i], 'w') as zip:
-            try:
-                for j in os.listdir(tempCurrentDir):
-                    zip.write(os.path.join(tempCurrentDir, j), arcname=j)
-            except Exception as e:
-                failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
-            finally:
-                zip.close()
-        print('done!')
+            # Get JSON files of extracted zip
+            allJsons = searchDirFor(tempCurrentDir, '', '.json')
+            lenAllJsons = len(allJsons)
+            displayArray(allJsons, f'Found {lenAllJsons} json'+ ('s' if lenAllJsons != 1 else ''))
 
-        # Remove temp dir for zip
-        print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=printEnd())
-        shutil.rmtree(tempCurrentDir)
-        print('done!')
+            if lenAllJsons > 0:
+                # Look threw all JSONs and replace specefied thing
+                for j in range(lenAllJsons):
+                    try:
+                        jsonChangeValue(allJsons[j], inputKey, inputValue)
+                    except Exception as e:
+                        print("failed!")
+                        failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
+
+                # Rezip extracted zip
+                print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
+                with zipFile(allZips[i], 'w') as zip:
+                    try:
+                        for j in os.listdir(tempCurrentDir):
+                            zip.write(os.path.join(tempCurrentDir, j), arcname=j)
+                    except Exception as e:
+                        failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
+                    finally:
+                        zip.close()
+                print('done!')
+
+            # Remove temp dir for zip
+            print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=printEnd())
+            shutil.rmtree(tempCurrentDir)
+            print('done!')
 
 
-    # Remove temp dir fully
-    print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=printEnd())
-    try:
-        os.rmdir(tempDir)
-        print('done!')
-    except OSError as e:
-        if e.errno == 41:
-            # Direcory not empty. Removing it with remaining tree
-            shutil.rmtree(tempDir)
-        else:
-            print('failed!')
-            failed.append(["removing", tempDir, type(e).__name__, str(e)])
+        # Remove temp dir fully
+        print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=printEnd())
+        try:
+            os.rmdir(tempDir)
+            print('done!')
+        except OSError as e:
+            if e.errno == 41:
+                # Direcory not empty. Removing it with remaining tree
+                shutil.rmtree(tempDir)
+            else:
+                print('failed!')
+                failed.append(["removing", tempDir, type(e).__name__, str(e)])
 
     print('\n'*2+'-='*5, 'SCRIPT FINISHED', '=-'*5+'\n')
+    lenFailed = len(failed)
 
-    if len(failed) > 1:
-        temp = 'S' if len(failed)==1 else ''
+    if lenFailed > 1:
+        temp = 'S' if lenFailed == 1 else ''
         print(f'WITH ERROR{temp}'+'=-'*4)
-        for i in range(len(failed)-1):
+        for i in range(lenFailed-1):
             print(f'\tGot {failed[i+1][2]} error "{failed[i+1][3]}" while {failed[i+1][0]} file "{failed[i+1][1]}"\n')
 
     print(f'\nExecution of script took: {round(time.time()-timeStart, 6)} seconds\n')
