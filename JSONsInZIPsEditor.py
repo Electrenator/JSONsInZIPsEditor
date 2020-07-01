@@ -132,8 +132,16 @@ def isValidJSON(data):
 
 
 def getInputJSON():
+    syntaxExceptions = ("true", "false", "null") # For allowing these as inputs even if capitalised
+
     inputKey = input('Input JSON key: ').replace("'",'"')
     inputValue = input('Input new JSON value: ').replace("'",'"')
+
+    # Check for exceptions
+    for entry in syntaxExceptions:
+        if inputValue.lower() == entry:
+            inputValue = entry
+
     inputData = '{'+f'{inputKey}:{inputValue}'+'}'
 
     if isValidJSON(inputData) == True:
