@@ -43,8 +43,11 @@ def getFileName(directory):
     return fileName
 
 
-def jsonChangeValue(file, key, value):
-    ''' Reads specified json file, changes it and saves that change '''
+def jsonChangeValue(file, key, value) -> int:
+    ''' 
+        Reads specified json file, changes it and saves that change 
+        Returns hasDataChanged bool (1 if changed 0 if has not)
+    '''
     print(f'{timeStamp(timeStart)} Changing "{key}" to '+str(value).replace("'",'"')+f' in "{file}"', end=printEnd())
 
     # Read data
@@ -64,41 +67,50 @@ def jsonChangeValue(file, key, value):
                 f.close()
 
     # Change data
-    data = searchAndReplace(data, key, value)
+    dataAltered, totalChanges = searchAndReplace(data, key, value)
+    hasDataChanged = 1 if totalChanges > 0 else 0
 
-    # Rewrite data
+    # Rewrite data if changed
     # (truncates/removes existing data in file)
-    if useEncoding != None:
-        with open(file, 'w', encoding=useEncoding) as f:
-            try:
-                json.dump(data, f, indent=4)
-            finally:
-                f.close()
-    else:
-        with open(file, 'w') as f:
-            try:
-                json.dump(data, f, indent=4)
-            finally:
-                f.close()
+    if hasDataChanged != 0:
+        if useEncoding != None:
+            with open(file, 'w', encoding=useEncoding) as f:
+                try:
+                    json.dump(dataAltered, f, indent=4)
+                finally:
+                    f.close()
+        else:
+            with open(file, 'w') as f:
+                try:
+                    json.dump(dataAltered, f, indent=4)
+                finally:
+                    f.close()
 
-    print('done!')
+    print('done!', '(changed {} keys)'.format(totalChanges) if hasDataChanged == 1 else '(no change)')
+    return hasDataChanged
 
 
-def searchAndReplace(var, searchKey, newValue):
-    ''' Searches and replaces values in a dictionary and lists with the specified key '''
+def searchAndReplace(var, searchKey, newValue, changes:int = 0):
+    '''
+        Searches and replaces values in a dictionary and lists with the specified key
+        Returns new var and amount of changes (int)
+    '''
     if type(var) == dict:
         for key in var.keys():
             if key == searchKey:
                 var[key] = newValue
+                changes += 1
             elif type(var[key]) == dict or type(var[key]) == list:
-                var[key] = searchAndReplace(var[key], searchKey, newValue)
-        return var
+                var[key], newChanges = searchAndReplace(var[key], searchKey, newValue)
+                changes += newChanges
+        return var, changes
     elif type(var) == list:
         for item in var:
             i = var.index(item)
             if type(var[i]) == dict or type(var[i]) == list:
-                var[i] = searchAndReplace(var[i], searchKey, newValue)
-        return var
+                var[i], newChanges = searchAndReplace(var[i], searchKey, newValue)
+                changes += newChanges
+        return var, changes
     else:
         raise TypeError('Input not a dict or list (the only dicts and lists are suported)')
 
@@ -210,24 +222,28 @@ def main():
 
             if lenAllJsons > 0:
                 # Look threw all JSONs and replace specefied thing
+                didJsonsChange = 0
                 for j in range(lenAllJsons):
                     try:
-                        jsonChangeValue(allJsons[j], inputKey, inputValue)
+                        hasJsonChanged = jsonChangeValue(allJsons[j], inputKey, inputValue)
+                        if hasJsonChanged == 1:
+                            didJsonsChange = 1
                     except Exception as e:
                         print("failed!")
                         failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
 
-                # Rezip extracted zip
-                print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
-                with zipFile(allZips[i], 'w') as zip:
-                    try:
-                        for j in os.listdir(tempCurrentDir):
-                            zip.write(os.path.join(tempCurrentDir, j), arcname=j)
-                    except Exception as e:
-                        failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
-                    finally:
-                        zip.close()
-                print('done!')
+                # Rezip extracted zip if something changed
+                if didJsonsChange == 1:
+                    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
+                    with zipFile(allZips[i], 'w') as zip:
+                        try:
+                            for j in os.listdir(tempCurrentDir):
+                                zip.write(os.path.join(tempCurrentDir, j), arcname=j)
+                        except Exception as e:
+                            failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
+                        finally:
+                            zip.close()
+                    print('done!')
 
             # Remove temp dir for zip
             print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=printEnd())
