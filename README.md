@@ -8,7 +8,7 @@ Only python 3+ is necessary. This script will *not* work on Python 2 and has bee
 
 ## Limitations
 At this moment the software is still limitation in functionality. The JSON values to search for and to replace can only be input into the script when it's running at this moment. There isn't another way written yet.\
-But please keep in mind that it can still make some mistakes in some rare unnoticed cases. So **please make a backup before running this script** in the folder where you have put it in. The script can always be run again with the same inputs to check if the JSON syntax is still correct inside of the zips.
+But please keep in mind that it can still make some mistakes in some rare unnoticed cases. So **please make a backup of zips inside the same directory that `JSONsInZIPsEditor.py` is in before running this script** in the folder where you have put it in. The script can always be run again with the same inputs to check if the JSON syntax is still correct inside of the zips.
 
 
 ## Input-able keys or values
