@@ -9,6 +9,78 @@ from enum import IntEnum, auto # Needs python 3.4+
     - Add option for only checking the JSON files (--check-only)
     - Add support for putting replacement key and variable in as a command-line variable
 '''
+# Setup necessary classes
+class settingArgTypes(IntEnum):
+        # Argument types used for remembering what input arguments is what.
+        INVAL = 0 # Giberish
+        EXECUTION_FILE = auto() # First argument (executed file)
+        COMPACT = auto() # -v or -vbr
+        LONG = auto() # --help
+        LONG_COMPLEX = auto() # --set_mode x (TODO: make work)
+        LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
+
+class argumentSettings(object):
+    # Creates class for helping argument setting setup
+    # and info showing
+
+    class varOrder(IntEnum):
+        # varOrder used for remembering order of data in varAvailable
+        trigger = 0
+        desc = auto()
+        isComplex = auto()
+        allowedEntry = auto()
+
+    # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (TODO) (only with complex bool. 0 if unset)]
+    varAvailable = [
+        ["-help", "Shows this help list"],
+        ["-check-only", "Only validate json files and make no changes", 1],
+        ["v", "Verbose/ tell what is going on"],
+    ]
+
+    def isUsed(self, trigger:str, argTrigType:settingArgTypes = None) -> bool:
+        # Check if trigger value is set in varAvailable, returnes bool
+
+        # Remove '-' from begin if there
+        if trigger[0] == '-': trigger = trigger[1:]
+
+        # Filtering and processing for COMPACT type
+        if argTrigType == settingArgTypes.COMPACT:
+            triggerLen = len(trigger)
+            if triggerLen > 1:
+                # Has more than one character, make character
+                for triggerChar in trigger:
+                    triggerCharUsed = self.isUsed(triggerChar, argTrigType)
+                    if triggerCharUsed == 0:
+                        # One of variables isn't used
+                        return 0
+                return 1
+
+        # Great for LONG types but COMPACT needs above filtering
+        for entry in self.varAvailable:
+            if entry[0] == trigger:
+                return 1
+        return 0
+
+    def getInfo(self, trigger:str, infoType:varOrder) -> str or int:
+        # This function searches for trigger and gets his value to return
+        #   at the infoType place
+        for i in self.varAvailable:
+            if i[self.varOrder.trigger] == trigger:
+                # Found trigger, now return value if able too
+                try:
+                    return i[infoType]
+                except IndexError:
+                    return None
+        return None
+
+    def setVal(self, trigger, value):
+        # TODO: Add setting setup
+        pass
+
+    def getVal(self, trigger):
+        # TODO: Make setting retrival work
+        pass
+
 
 def searchDirFor(directory, startsW, endsW):
     ''' Searches recursively in the specified directory for files that start with "startW" and end with "endsW" '''
@@ -285,35 +357,7 @@ def main():
     print(f'\nExecution of script took: {round(time.time()-timeStart, 6)} seconds\n')
 
 
-
-
-    print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
-
-
-class EnvVariableSimple(object):
-    # Simple enviroment variable object
-    def getType(self):
-        return -1
-    def __init__(self, trigger:str):
-        self.trigger = trigger
-        self.type = self.getType()
-
-class EnvVariableLonger(EnvVariableSimple):
-    # Env variable with more length
-    pass
-
-class variable(object):
-    def __init__(self, type, length):
-        self.type = type
-
-class settingArgTypes(IntEnum):
-    INVAL = 0 # Giberish
-    EXECUTION_FILE = auto() # First argument (executed file)
-    COMPACT = auto() # -v or -vbr
-    LONG = auto() # --help
-    LONG_COMPLEX = auto() # --set_mode x (TODO)
-    LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
-
+'''
 class setting(object):
     def __init__(self, trigger:str, description:str, length:int = 1):
         self.trigger = trigger # like -help or v
@@ -324,6 +368,7 @@ class setting(object):
         # Trigger must be 1 character if canMerge
         if self.canMerge == 1 and len(self.trigger) != 1:
             raise ValueError("Trigger must be 1 character if no extra '-' was found")
+'''
 
 def hasSubStr(targetStr:str, thisStr:str, mode:int=0) -> bool:
     # Looks for str inside of str and returns 1 if found, 0 if not
@@ -373,41 +418,16 @@ def getSettingArgType(arg:str, prevArgType:int) -> settingArgTypes:
     # Is longer
     return settingArgTypes.LONG
 
-#print(argumentSettings.varSettings)
+#print(argumentSettings.varAvailable)
 #print("--help", argumentSettings.isUsed(argumentSettings, "--help"))
 
 #print("--check-only", argumentSettings.isUsed(argumentSettings, "--check-only"))
 
-def getSettings(argsEnv:list) -> dict:
+def getSettings(argsEnv:list) -> argumentSettings:
     # This function gets the enviroment arguments and processes them.
     # It should (TODO) return the settings themself
 
-    # Setup nessesery classes
-    class argumentSettings(object):
-        # Creates class for helping argument setting setup
-        # and info showing
-        # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (only with complex bool. Ignored if unset)]
-        varSettings = [
-            ["-help", "Shows this help list"],
-            ["-check-only", "Only validate json files and make no changes"]
-        ]
-
-        def isUsed(self, trigger) -> bool:
-            return 1 # TODO: Remove this line (for testing)
-            for entry in self.varSettings:
-                if entry[0] == trigger[1:]:
-                    return 1
-            return 0
-    
-    class settingArgTypes(IntEnum):
-        # Argument types used remembering what input arguments is what.
-        INVAL = 0 # Giberish
-        EXECUTION_FILE = auto() # First argument (executed file)
-        COMPACT = auto() # -v or -vbr
-        LONG = auto() # --help
-        LONG_COMPLEX = auto() # --set_mode x (TODO)
-        LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
-
+    settings = argumentSettings()
     # Look for argument type
     argHasType = [settingArgTypes.EXECUTION_FILE]
     counter = 1
@@ -416,47 +436,40 @@ def getSettings(argsEnv:list) -> dict:
 
         # Check for LONG_COMPLEX_CHIELD, if found set previous as LONG_COMPLEX
         if argHasType[-1] == settingArgTypes.LONG_COMPLEX_CHILD:
-            argHasType[-2] = settingArgTypes.LONG_COMPLEX
+            # Check if argsEnv[counter - 1] can get LONG_COMPLEX
+            if settings.getInfo(argsEnv[counter - 1][1:], settings.varOrder.isComplex) != 1:
+                argHasType[-1] = settingArgTypes.INVAL
+            else: 
+                argHasType[-2] = settingArgTypes.LONG_COMPLEX
             # TODO: If LONG is never a complex make argHasType[-1] INVAL
 
         # Check if trigger is used
         if argHasType[-1] == settingArgTypes.LONG or argHasType[-1] == settingArgTypes.LONG_COMPLEX or argHasType[-1] == settingArgTypes.COMPACT:
-            print(argsEnv[counter], "[isUsed]", argumentSettings.isUsed(argumentSettings, argsEnv[counter]))
+            isArgTrigUsed = settings.isUsed(argsEnv[counter], argHasType[counter])
+            print(argsEnv[counter], "[isUsed]", isArgTrigUsed)
+
+            if isArgTrigUsed == 0:
+                # TODO: Add custom error
+                raise Exception # Unused/ Unknown cli input setting found
         counter += 1
 
         if argHasType[-1] == settingArgTypes.INVAL:
-            pass #raise Exception # TODO: Add custom error for INVAL
+            # TODO: Add custom error
+            raise Exception # Invalid cli input setting format detected
     print(argHasType)
 
-    # Check if argument trigger is used (TODO: try to put in type lookup above)
-    for i in range(len(argsEnv) - 1):
-        isIArgUsed = 0
-        if argHasType[i + 1] == settingArgTypes.LONG:
-            isIArgUsed = argumentSettings.isUsed(argumentSettings, argsEnv[i + 1])
-            print(argsEnv[i + 1], isIArgUsed)
-        else:
-            # Default 1 for testing
-            isIArgUsed = 1
-        
-        if isIArgUsed == 0:
-            raise Exception # TODO: Add custom error
-        pass
+    # Set settings to return (TODO)
 
-    # Set settings to return
-        
-    pass
+    return settings
 
-thing = setting("-help", "Shows this help list")
-otherThing = setting("v", "Enables verbosing")
 
-#print(thing.canMerge)
-#print(otherThing.canMerge)
+print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
 
-settings = getSettings(sys.argv)
+setting = getSettings(sys.argv)
 
 # Run main() if file wasn't imported
 if __name__ == '__main__':
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
-    main(settings)
+    main(setting)
