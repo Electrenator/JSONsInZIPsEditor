@@ -19,6 +19,7 @@ class settingArgTypes(IntEnum):
         LONG_COMPLEX = auto() # --set_mode x (TODO: make work)
         LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
 
+
 class argumentSettings(object):
     # Creates class for helping argument setting setup
     # and info showing
@@ -235,6 +236,96 @@ def getConformation(q):
         return getConformation(q)
 
 
+def hasSubStr(targetStr:str, thisStr:str, mode:int=0) -> bool:
+    # Looks for str inside of str and returns 1 if found, 0 if not
+    # Modes:
+    #   0 - (default) searches whole str
+    #   1 - Only search front with length of targetStr
+    #   2 - Only search back with length of targetStr
+
+    targetStrLen = len(targetStr)
+    if mode == 0:
+        if targetStr in thisStr:
+            return 1
+    elif mode == 1:
+        if targetStr in thisStr[:targetStrLen]:
+            return 1
+    elif mode == 2:
+        if targetStr in thisStr[:-targetStrLen - 1:-1][::-1]:
+            return 1
+    return 0
+
+
+def hasAllowedChars(thisStr:str, allowedChars:str) -> bool:
+    # Function checks if thisStr ONLY has allowedChars in it.
+    # Returns true if it does, false if not
+    for char in thisStr:
+        if char not in allowedChars:
+            return 0
+    return 1
+
+
+def getSettingArgType(arg:str, prevArgType:int) -> settingArgTypes:
+    # Function looks at Argument to determin the type, then returns the type
+    allowedCharsCompact = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXYZ"
+
+    if hasSubStr('-', arg, 1) != 1:
+        # Is invalid but may be LONG_COMPLEX_CHILD
+        if prevArgType == settingArgTypes.LONG:
+            return settingArgTypes.LONG_COMPLEX_CHILD
+        return settingArgTypes.INVAL
+
+    # Is argument, check if longer
+    if hasSubStr('--', arg, 1) != 1:
+        # Is probably of type compact, testing for invalid characters
+        if hasAllowedChars(arg[1:], allowedCharsCompact) == 1:
+            return settingArgTypes.COMPACT # Is a valid compact type
+
+        return settingArgTypes.INVAL # Invalid
+
+    # Is longer
+    return settingArgTypes.LONG
+
+
+def getSettings(argsEnv:list) -> argumentSettings:
+    # This function gets the enviroment arguments and processes them.
+    # It should (TODO) return the settings themself
+
+    settings = argumentSettings()
+    # Look for argument type
+    argHasType = [settingArgTypes.EXECUTION_FILE]
+    counter = 1
+    for arg in argsEnv[1:]:
+        argHasType.append(getSettingArgType(arg, argHasType[-1]))
+
+        # Check for LONG_COMPLEX_CHIELD, if found set previous as LONG_COMPLEX
+        if argHasType[-1] == settingArgTypes.LONG_COMPLEX_CHILD:
+            # Check if argsEnv[counter - 1] can get LONG_COMPLEX
+            if settings.getInfo(argsEnv[counter - 1][1:], settings.varOrder.isComplex) != 1:
+                argHasType[-1] = settingArgTypes.INVAL
+            else: 
+                argHasType[-2] = settingArgTypes.LONG_COMPLEX
+
+        # Check if trigger is used
+        if argHasType[-1] == settingArgTypes.LONG or argHasType[-1] == settingArgTypes.LONG_COMPLEX or argHasType[-1] == settingArgTypes.COMPACT:
+            isArgTrigUsed = settings.isUsed(argsEnv[counter], argHasType[counter])
+            print(argsEnv[counter], "[isUsed]", isArgTrigUsed)
+
+            if isArgTrigUsed == 0:
+                # TODO: Add custom error
+                raise Exception # Unused/ Unknown cli input setting found
+        counter += 1
+
+        if argHasType[-1] == settingArgTypes.INVAL:
+            # TODO: Add custom error
+            raise Exception # Invalid cli input setting format detected
+    print(argHasType)
+
+    # Set settings to return (TODO)
+
+    return settings
+
+
 def main():
     # Set variables that are global (mostly for writing not neded for reading)
     global timeStart
@@ -357,118 +448,11 @@ def main():
     print(f'\nExecution of script took: {round(time.time()-timeStart, 6)} seconds\n')
 
 
-'''
-class setting(object):
-    def __init__(self, trigger:str, description:str, length:int = 1):
-        self.trigger = trigger # like -help or v
-        self.length = length # Total arguments used for this setting
-        self.canMerge = 0 if self.trigger[0] == '-' else 1
-
-        # Check if trigger is valid for canMerge
-        # Trigger must be 1 character if canMerge
-        if self.canMerge == 1 and len(self.trigger) != 1:
-            raise ValueError("Trigger must be 1 character if no extra '-' was found")
-'''
-
-def hasSubStr(targetStr:str, thisStr:str, mode:int=0) -> bool:
-    # Looks for str inside of str and returns 1 if found, 0 if not
-    # Modes:
-    #   0 - (default) searches whole str
-    #   1 - Only search front with length of targetStr
-    #   2 - Only search back with length of targetStr
-
-    targetStrLen = len(targetStr)
-    if mode == 0:
-        if targetStr in thisStr:
-            return 1
-    elif mode == 1:
-        if targetStr in thisStr[:targetStrLen]:
-            return 1
-    elif mode == 2:
-        if targetStr in thisStr[:-targetStrLen - 1:-1][::-1]:
-            return 1
-    return 0
-
-def hasAllowedChars(thisStr:str, allowedChars:str) -> bool:
-    # Function checks if thisStr ONLY has allowedChars in it.
-    # Returns true if it does, false if not
-    for char in thisStr:
-        if char not in allowedChars:
-            return 0
-    return 1
-
-def getSettingArgType(arg:str, prevArgType:int) -> settingArgTypes:
-    # Function looks at Argument to determin the type, then returns the type
-    allowedCharsCompact = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXYZ"
-
-    if hasSubStr('-', arg, 1) != 1:
-        # Is invalid but may be LONG_COMPLEX_CHILD
-        if prevArgType == settingArgTypes.LONG:
-            return settingArgTypes.LONG_COMPLEX_CHILD
-        return settingArgTypes.INVAL
-
-    # Is argument, check if longer
-    if hasSubStr('--', arg, 1) != 1:
-        # Is probably of type compact, testing for invalid characters
-        if hasAllowedChars(arg[1:], allowedCharsCompact) == 1:
-            return settingArgTypes.COMPACT # Is a valid compact type
-
-        return settingArgTypes.INVAL # Invalid
-
-    # Is longer
-    return settingArgTypes.LONG
-
-#print(argumentSettings.varAvailable)
-#print("--help", argumentSettings.isUsed(argumentSettings, "--help"))
-
-#print("--check-only", argumentSettings.isUsed(argumentSettings, "--check-only"))
-
-def getSettings(argsEnv:list) -> argumentSettings:
-    # This function gets the enviroment arguments and processes them.
-    # It should (TODO) return the settings themself
-
-    settings = argumentSettings()
-    # Look for argument type
-    argHasType = [settingArgTypes.EXECUTION_FILE]
-    counter = 1
-    for arg in argsEnv[1:]:
-        argHasType.append(getSettingArgType(arg, argHasType[-1]))
-
-        # Check for LONG_COMPLEX_CHIELD, if found set previous as LONG_COMPLEX
-        if argHasType[-1] == settingArgTypes.LONG_COMPLEX_CHILD:
-            # Check if argsEnv[counter - 1] can get LONG_COMPLEX
-            if settings.getInfo(argsEnv[counter - 1][1:], settings.varOrder.isComplex) != 1:
-                argHasType[-1] = settingArgTypes.INVAL
-            else: 
-                argHasType[-2] = settingArgTypes.LONG_COMPLEX
-            # TODO: If LONG is never a complex make argHasType[-1] INVAL
-
-        # Check if trigger is used
-        if argHasType[-1] == settingArgTypes.LONG or argHasType[-1] == settingArgTypes.LONG_COMPLEX or argHasType[-1] == settingArgTypes.COMPACT:
-            isArgTrigUsed = settings.isUsed(argsEnv[counter], argHasType[counter])
-            print(argsEnv[counter], "[isUsed]", isArgTrigUsed)
-
-            if isArgTrigUsed == 0:
-                # TODO: Add custom error
-                raise Exception # Unused/ Unknown cli input setting found
-        counter += 1
-
-        if argHasType[-1] == settingArgTypes.INVAL:
-            # TODO: Add custom error
-            raise Exception # Invalid cli input setting format detected
-    print(argHasType)
-
-    # Set settings to return (TODO)
-
-    return settings
-
-
-print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
-
-setting = getSettings(sys.argv)
-
 # Run main() if file wasn't imported
 if __name__ == '__main__':
+    print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
+
+    setting = getSettings(sys.argv)
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
