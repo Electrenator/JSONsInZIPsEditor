@@ -3,7 +3,7 @@ Like the description of this repository says is the purpose of this program to c
 
 
 ## Necessary things
-Only python 3+ is necessary. This script will *not* work on Python 2 and has been tested on Python 3.8.
+Only python 3.4+ is necessary. This script will *not* work on Python 2 and has been tested on Python 3.8.
 
 
 ## Limitations
