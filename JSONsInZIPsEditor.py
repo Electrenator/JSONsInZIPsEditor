@@ -9,6 +9,7 @@ from enum import IntEnum, auto # Needs python 3.4+
     - Add option for only checking the JSON files (--check-only)
     - Add support for putting replacement key and variable in as a command-line variable
 '''
+
 # Setup necessary classes
 class settingArgTypes(IntEnum):
         # Argument types used for remembering what input arguments is what.
@@ -33,10 +34,13 @@ class argumentSettings(object):
 
     # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (TODO) (only with complex bool. 0 if unset)]
     varAvailable = [
-        ["-help", "Shows this help list"],
-        ["-check-only", "Only validate json files and make no changes", 1],
-        ["v", "Verbose/ tell what is going on"],
+        ["-help", "Shows this help list", 0, []],
     ]
+
+    def __init__(self, toAddVarSettings):
+        # Add wanted variables to varAvailable list
+        for indexSet in toAddVarSettings:
+            self.varAvailable.append(indexSet)
 
     def isUsed(self, trigger:str, argTrigType:settingArgTypes = None) -> bool:
         # Check if trigger value is set in varAvailable, returnes bool
@@ -287,11 +291,12 @@ def getSettingArgType(arg:str, prevArgType:int) -> settingArgTypes:
     return settingArgTypes.LONG
 
 
-def getSettings(argsEnv:list) -> argumentSettings:
+def getSettings(argsEnv:list, argsSettingsUsed:list == None) -> argumentSettings:
     # This function gets the enviroment arguments and processes them.
     # It should (TODO) return the settings themself
 
-    settings = argumentSettings()
+    settings = argumentSettings(argsSettingsUsed)
+
     # Look for argument type
     argHasType = [settingArgTypes.EXECUTION_FILE]
     counter = 1
@@ -452,7 +457,12 @@ def main():
 if __name__ == '__main__':
     print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
 
-    setting = getSettings(sys.argv)
+    argsUsed = [
+        # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (only with complex bool. 0 if unset)]
+        ["-check-only", "Only validate json files and make no changes", 1],
+        ["v", "Verbose/ tell what is going on"],
+    ]
+    setting = getSettings(sys.argv, argsUsed)
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
