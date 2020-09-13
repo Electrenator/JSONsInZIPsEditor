@@ -8,48 +8,53 @@ from enum import IntEnum, auto # Needs python 3.4+
     - Add option for verbose instead of spamming a log (-v)
     - Add option for only checking the JSON files (--check-only)
     - Add support for putting replacement key and variable in as a command-line variable
+    - Move function descriptions into multiline comments (better practice)
 '''
 
 # Setup necessary classes
-class settingArgTypes(IntEnum):
+class SettingArgTypes(IntEnum):
         # Argument types used for remembering what input arguments is what.
         INVAL = 0 # Giberish
-        EXECUTION_FILE = auto() # First argument (executed file)
+        CALLED_FILE_PATH = auto() # First argument (executed file)
         COMPACT = auto() # -v or -vbr
         LONG = auto() # --help
         LONG_COMPLEX = auto() # --set_mode x (TODO: make work)
         LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
 
 
-class argumentSettings(object):
+class ArgumentSettings(object):
     # Creates class for helping argument setting setup
     # and info showing
 
-    class varOrder(IntEnum):
-        # varOrder used for remembering order of data in varAvailable
+    class VarOrder(IntEnum):
+        # VarOrder used for remembering order of data in varAvailable to allow easy change
         trigger = 0
+        settingName = auto()
         desc = auto()
         isComplex = auto()
         allowedEntry = auto()
 
-    # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (TODO) (only with complex bool. 0 if unset)]
+    # Entry as: [trigger, settingName, description, is complex bool (0 if unset), list of allowed entries (TODO) (only with complex bool. 0 if unset)]
     varAvailable = [
-        ["-help", "Shows this help list", 0, []],
+        ["CALLED_FILE_PATH", "calledFilePath", 1, []], # Special case for standard given argument
+        ["-help", "help", "Shows this help list", 0, []],
     ]
+
+    activeSettings = {}
 
     def __init__(self, toAddVarSettings):
         # Add wanted variables to varAvailable list
         for indexSet in toAddVarSettings:
             self.varAvailable.append(indexSet)
 
-    def isUsed(self, trigger:str, argTrigType:settingArgTypes = None) -> bool:
+    def isUsed(self, trigger:str, argTrigType:SettingArgTypes = None) -> bool:
         # Check if trigger value is set in varAvailable, returnes bool
 
         # Remove '-' from begin if there
         if trigger[0] == '-': trigger = trigger[1:]
 
         # Filtering and processing for COMPACT type
-        if argTrigType == settingArgTypes.COMPACT:
+        if argTrigType == SettingArgTypes.COMPACT:
             triggerLen = len(trigger)
             if triggerLen > 1:
                 # Has more than one character, make character
@@ -66,11 +71,11 @@ class argumentSettings(object):
                 return 1
         return 0
 
-    def getInfo(self, trigger:str, infoType:varOrder) -> str or int:
+    def getInfo(self, trigger:str, infoType:VarOrder) -> str or int:
         # This function searches for trigger and gets his value to return
         #   at the infoType place
         for i in self.varAvailable:
-            if i[self.varOrder.trigger] == trigger:
+            if i[self.VarOrder.trigger] == trigger:
                 # Found trigger, now return value if able too
                 try:
                     return i[infoType]
@@ -78,13 +83,16 @@ class argumentSettings(object):
                     return None
         return None
 
-    def setVal(self, trigger, value):
-        # TODO: Add setting setup
-        pass
+    def setVal(self, settingName: VarOrder.settingName, value = None) -> None:
+        # TODO: Add function description
+        # TODO: Add complex variable "allowed input check" (Only a thing 
+        #   when value = None)
+        # TODO: Add help menu if help detected (Also call printHelp function)
+        print(self, settingName, value)
+        self.activeSettings[settingName] = 1 if value == None else value
 
-    def getVal(self, trigger):
-        # TODO: Make setting retrival work
-        pass
+    def getVal(self, settingName: VarOrder.settingName):
+        return self.activeSettings[settingName]
 
 
 def searchDirFor(directory, startsW, endsW):
@@ -269,50 +277,71 @@ def hasAllowedChars(thisStr:str, allowedChars:str) -> bool:
     return 1
 
 
-def getSettingArgType(arg:str, prevArgType:int) -> settingArgTypes:
+def getSettingArgType(arg:str, prevArgType:int) -> SettingArgTypes:
     # Function looks at Argument to determin the type, then returns the type
     allowedCharsCompact = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXYZ"
 
     if hasSubStr('-', arg, 1) != 1:
         # Is invalid but may be LONG_COMPLEX_CHILD
-        if prevArgType == settingArgTypes.LONG:
-            return settingArgTypes.LONG_COMPLEX_CHILD
-        return settingArgTypes.INVAL
+        if prevArgType == SettingArgTypes.LONG:
+            return SettingArgTypes.LONG_COMPLEX_CHILD
+        return SettingArgTypes.INVAL
 
     # Is argument, check if longer
     if hasSubStr('--', arg, 1) != 1:
         # Is probably of type compact, testing for invalid characters
         if hasAllowedChars(arg[1:], allowedCharsCompact) == 1:
-            return settingArgTypes.COMPACT # Is a valid compact type
+            return SettingArgTypes.COMPACT # Is a valid compact type
 
-        return settingArgTypes.INVAL # Invalid
+        return SettingArgTypes.INVAL # Invalid
 
     # Is longer
-    return settingArgTypes.LONG
+    return SettingArgTypes.LONG
 
 
-def getSettings(argsEnv:list, argsSettingsUsed:list == None) -> argumentSettings:
-    # This function gets the enviroment arguments and processes them.
-    # It should (TODO) return the settings themself
+def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSettings:
+    '''
+        This function gets the enviroment arguments and processes them to a more friendly form.
+        It should (TODO) return the settings themself
+    '''
+    '''
+        -=-= Little note =-=-
+        Yes, I know that this whole function with the argument parsing I do here
+        can be done with getopt.getopt() or argparse, and so is unconventional. The
+        reason why I, an inexperienced programmer and first-year college student, took
+        the time to write this code is mostly as a challenge.
+        Secondly, I hope to learn to write code that parses arguments like
+        these, so that I can use this in future projects even if they are in another,
+        more complex, programming language. This way I may be able to save time in the
+        future by basing argument parsing on what I did here.
 
-    settings = argumentSettings(argsSettingsUsed)
+        TLDR; Basically wrote this function to learn how I could do this in the future
+        using other programming languages. Even though I could have used an already
+        build sys function
 
-    # Look for argument type
-    argHasType = [settingArgTypes.EXECUTION_FILE]
+        - Electrenator 
+    '''
+
+    settings = ArgumentSettings(argsSettingsUsed)
+
+    # Look and get for argument types
+    argHasType = [SettingArgTypes.CALLED_FILE_PATH]
     counter = 1
     for arg in argsEnv[1:]:
         argHasType.append(getSettingArgType(arg, argHasType[-1]))
 
         # Check for LONG_COMPLEX_CHIELD, if found set previous as LONG_COMPLEX
-        if argHasType[-1] == settingArgTypes.LONG_COMPLEX_CHILD:
+        if argHasType[-1] == SettingArgTypes.LONG_COMPLEX_CHILD:
             # Check if argsEnv[counter - 1] can get LONG_COMPLEX
-            if settings.getInfo(argsEnv[counter - 1][1:], settings.varOrder.isComplex) != 1:
-                argHasType[-1] = settingArgTypes.INVAL
+            if settings.getInfo(argsEnv[counter - 1][1:], settings.VarOrder.isComplex) != 1:
+                argHasType[-1] = SettingArgTypes.INVAL
             else: 
-                argHasType[-2] = settingArgTypes.LONG_COMPLEX
+                argHasType[-2] = SettingArgTypes.LONG_COMPLEX
 
         # Check if trigger is used
-        if argHasType[-1] == settingArgTypes.LONG or argHasType[-1] == settingArgTypes.LONG_COMPLEX or argHasType[-1] == settingArgTypes.COMPACT:
+        if (argHasType[-1] == SettingArgTypes.LONG or 
+          argHasType[-1] == SettingArgTypes.LONG_COMPLEX or 
+          argHasType[-1] == SettingArgTypes.COMPACT):
             isArgTrigUsed = settings.isUsed(argsEnv[counter], argHasType[counter])
             print(argsEnv[counter], "[isUsed]", isArgTrigUsed)
 
@@ -321,17 +350,57 @@ def getSettings(argsEnv:list, argsSettingsUsed:list == None) -> argumentSettings
                 raise Exception # Unused/ Unknown cli input setting found
         counter += 1
 
-        if argHasType[-1] == settingArgTypes.INVAL:
+        if argHasType[-1] == SettingArgTypes.INVAL:
             # TODO: Add custom error
             raise Exception # Invalid cli input setting format detected
+
     print(argHasType)
 
-    # Set settings to return (TODO)
+    # Set settings in settings class to return
+    for argNumber in range(len(argsEnv)):
+        thisArgType = argHasType[argNumber]
+
+        if not thisArgType == SettingArgTypes.LONG_COMPLEX:
+            if thisArgType == SettingArgTypes.CALLED_FILE_PATH:
+                # CALLED_FILE_PATH argument; Special treatment
+                thisArgName = settings.getInfo("CALLED_FILE_PATH",
+                  settings.VarOrder.settingName) # Get settingName
+
+            elif thisArgType == SettingArgTypes.LONG_COMPLEX_CHILD:
+                # Complex argument; get complex(er) treatment
+                thisArgName = settings.getInfo(argsEnv[argNumber - 1][1:],
+                  settings.VarOrder.settingName) # Get settingName of parent arg
+                
+            else:
+                # Simple argument
+                thisArgName = settings.getInfo(argsEnv[argNumber][1:],
+                  settings.VarOrder.settingName) # Get settingName
+                
+
+            # Store arg setting data
+            print(thisArgName, thisArgType)
+            if thisArgName != None:
+                if thisArgType == SettingArgTypes.LONG_COMPLEX_CHILD:
+                    # Set complex value
+                    settings.setVal(thisArgName, argsEnv[argNumber])
+                elif thisArgType == SettingArgTypes.CALLED_FILE_PATH:
+                    # Set CALLED_FILE_PATH value
+                    settings.setVal(thisArgName, argsEnv[argNumber])
+                else:
+                    # Set other values
+                    settings.setVal(thisArgName)
+            else:
+                raise Exception # All Args should have name at this point
+
+
+    print(settings.activeSettings)
+
+    for i in settings.activeSettings:
+        print(i, settings.getVal(i))
 
     return settings
 
-
-def main():
+def main(argVariables:SettingArgTypes):
     # Set variables that are global (mostly for writing not neded for reading)
     global timeStart
 
@@ -457,13 +526,12 @@ def main():
 if __name__ == '__main__':
     print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
 
-    argsUsed = [
-        # Entry as: [trigger, description, is complex bool (0 if unset), list of allowed entries (only with complex bool. 0 if unset)]
-        ["-check-only", "Only validate json files and make no changes", 1],
-        ["v", "Verbose/ tell what is going on"],
-    ]
-    setting = getSettings(sys.argv, argsUsed)
+    argSettings = getArgSettings(sys.argv, [
+        # Entry as: [trigger, settingName, description, is complex bool (0 if unset), list of allowed entries (only with complex bool. 0 if unset)]
+        ["-check-only", "check-only", "Only validate json files and make no changes", 1],
+        ["v", "verbose", "Verbose/ tell what is going on"],
+    ])
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
-    main(setting)
+    main(argSettings)
