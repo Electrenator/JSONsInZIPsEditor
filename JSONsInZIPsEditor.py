@@ -4,27 +4,28 @@ import os, random, json, time, shutil, sys
 from enum import IntEnum, auto # Needs python 3.4+
 
 '''TODO:
-    - Add support for command-line options (And add --help of course)
     - Add option for verbose instead of spamming a log (-v)
     - Add option for only checking the JSON files (--check-only)
     - Add support for putting replacement key and variable in as a command-line variable
-    - Move function descriptions into multiline comments (better practice)
 '''
 
 # Setup necessary classes
 class SettingArgTypes(IntEnum):
-        # Argument types used for remembering what input arguments is what.
+        '''Argument types used for remembering what input arguments is what.
+        '''
         INVAL = 0 # Giberish
         CALLED_FILE_PATH = auto() # First argument (executed file)
         COMPACT = auto() # -v or -vbr
         LONG = auto() # --help
-        LONG_COMPLEX = auto() # --set_mode x (TODO: make work)
+        LONG_COMPLEX = auto() # --set_mode x
         LONG_COMPLEX_CHILD = auto() # the x from the LONG_COMPLEX comment
 
 
 class ArgumentSettings(object):
-    # Creates class for helping argument setting setup
-    # and info showing
+    '''
+        Class for helping with CLI argument support setup
+        and info showing
+    '''
 
     class VarOrder(IntEnum):
         # VarOrder used for remembering order of data in varAvailable to allow easy change
@@ -34,6 +35,7 @@ class ArgumentSettings(object):
         isComplex = auto()
         allowedEntry = auto()
 
+    LOCATION_HELP = 1 # Location of help entry in varAvailable
     # Entry as: [trigger, settingName, description, is complex bool (0 if unset), list of allowed entries (TODO) (only with complex bool. 0 if unset)]
     varAvailable = [
         ["CALLED_FILE_PATH", "calledFilePath", 1, []], # Special case for standard given argument
@@ -42,13 +44,18 @@ class ArgumentSettings(object):
 
     activeSettings = {}
 
-    def __init__(self, toAddVarSettings):
+    def __init__(self, toAddVarSettings, programName:str):
+        '''Initiates ArgumentSettings class
+        '''
         # Add wanted variables to varAvailable list
         for indexSet in toAddVarSettings:
             self.varAvailable.append(indexSet)
+        
+        self.NAME = programName
 
     def isUsed(self, trigger:str, argTrigType:SettingArgTypes = None) -> bool:
-        # Check if trigger value is set in varAvailable, returnes bool
+        '''Checks if trigger value is set in varAvailable, then returns bool
+        '''
 
         # Remove '-' from begin if there
         if trigger[0] == '-': trigger = trigger[1:]
@@ -72,8 +79,10 @@ class ArgumentSettings(object):
         return 0
 
     def getInfo(self, trigger:str, infoType:VarOrder) -> str or int:
-        # This function searches for trigger and gets his value to return
-        #   at the infoType place
+        '''
+            This function searches for trigger and gets his value to return
+            at the infoType place
+        '''
         for i in self.varAvailable:
             if i[self.VarOrder.trigger] == trigger:
                 # Found trigger, now return value if able too
@@ -84,19 +93,55 @@ class ArgumentSettings(object):
         return None
 
     def setVal(self, settingName: VarOrder.settingName, value = None) -> None:
-        # TODO: Add function description
+        '''Function sets the settingName in activeSettings to Value for later use
+        '''
         # TODO: Add complex variable "allowed input check" (Only a thing 
-        #   when value = None)
-        # TODO: Add help menu if help detected (Also call printHelp function)
-        print(self, settingName, value)
+        #   when value != None)
         self.activeSettings[settingName] = 1 if value == None else value
 
     def getVal(self, settingName: VarOrder.settingName):
+        '''This function retrieves a value of a var from activeSettings and returns it
+        '''
         return self.activeSettings[settingName]
+    
+    def showHelp(self) -> None:
+        '''This function generates and shows the help info menu
+        '''
+        # TODO: May be great to sort the output alphabaticly and in type (long/ short)
+
+        # Show help list info
+        print("\nHelp information menu of {}\n".format(self.NAME))
+
+        # Go threw used variables and show them in niceish format
+        # Ignore the first entry (CALLED_FILE_PATH)
+        for var in self.varAvailable[1:]:
+            infoString = "\t" # Base string
+
+            if (var[self.VarOrder.trigger][0] == "-"):
+                # Add formating for long triggers
+                infoString += "\b-" + var[self.VarOrder.trigger]
+                infoString += "" if (len(var[self.VarOrder.trigger]) > 8) else "\t"
+            else:
+                # Add formating for short triggers
+                infoString += "-{}\t".format(var[self.VarOrder.trigger])
+            
+            # Print formatted string
+            print("{}\t{}".format(infoString, var[self.VarOrder.desc]))
+
+            # Print extra info about LONG's child posibilities (TODO)
+            # TODO: add print("\t └ Supports arguments")
+            # TODO: print("\t └ Supports following arguments;")
+        
+        print("\n") # New lines just to make it nice
+        exit(0) # Help message exit
 
 
-def searchDirFor(directory, startsW, endsW):
-    ''' Searches recursively in the specified directory for files that start with "startW" and end with "endsW" '''
+def searchDirFor(directory, startsW, endsW) -> list:
+    ''' 
+        Searches recursively in the specified directory for files that start with 
+        "startW" and end with "endsW".
+        Returns list of specefied files
+    '''
     foundTarget = []
 
     for file in os.listdir(directory):
@@ -108,8 +153,9 @@ def searchDirFor(directory, startsW, endsW):
     return foundTarget
 
 
-def displayArray(array, description):
-    ''' Does as the name says with a nice & readable format '''
+def displayArray(array, description) -> None:
+    ''' Does as the name says with formatting
+    '''
     temp = ''
     lenArray = len(array)
     for i in range(lenArray):
@@ -123,7 +169,8 @@ def displayArray(array, description):
 
 
 def getFileName(directory):
-    ''' Gets the name of the specified file without extension and dictionary '''
+    ''' Gets the name of the specified file without extension and dictionary
+    '''
     splitUpDirectory = directory.split('/')
     fileName = splitUpDirectory[len(splitUpDirectory)-1].rsplit('.', 1)[0]
     return fileName
@@ -134,7 +181,7 @@ def jsonChangeValue(file, key, value) -> int:
         Reads specified json file, changes it and saves that change
         Returns hasDataChanged bool (1 if changed 0 if has not)
     '''
-    print(f'{timeStamp(timeStart)} Changing "{key}" to '+str(value).replace("'",'"')+f' in "{file}"', end=printEnd())
+    print(f'{timeStamp(timeStart)} Changing "{key}" to '+str(value).replace("'",'"')+f' in "{file}"', end=END_DOTS)
 
     # Read data
     useEncoding = None
@@ -201,15 +248,17 @@ def searchAndReplace(var, searchKey, newValue, changes:int = 0):
         raise TypeError('Input not a dict or list (the only dicts and lists are suported)')
 
 
-def timeStamp(timeStart):
-    return f'[{round(time.time()-timeStart, 3)}s]'
+def timeStamp(timeStart) -> str:
+    '''
+        This function calculates the time from the start of execution and returns a
+        string with this data formated into bracets.
+    '''
+    return "[{}s]".format(round(time.time() - timeStart, 3))
 
 
-def printEnd():
-    return '...    '
-
-
-def isValidJSON(data):
+def isValidJSON(data) -> bool:
+    ''' This funciton checks if data is valid json. Returns true if true otherwise false
+    '''
     try:
         json.loads(data)
         return True
@@ -237,7 +286,11 @@ def getInputJSON():
         return getInputJSON()
 
 
-def getConformation(q):
+def getConformation(q) -> bool:
+    '''
+        Asks for user conformation via CLI.
+        If no conformation is given it will re-ask it recursively
+    '''
     a = input(str(q)+" (y or n) ")
     if "y" == a.lower() or "yes" == a.lower():
         return True
@@ -249,11 +302,13 @@ def getConformation(q):
 
 
 def hasSubStr(targetStr:str, thisStr:str, mode:int=0) -> bool:
-    # Looks for str inside of str and returns 1 if found, 0 if not
-    # Modes:
-    #   0 - (default) searches whole str
-    #   1 - Only search front with length of targetStr
-    #   2 - Only search back with length of targetStr
+    '''
+        Looks for str inside of str and returns 1 if found, 0 if not
+        Modes:
+        0 - (default) searches whole str
+        1 - Only search front with length of targetStr
+        2 - Only search back with length of targetStr
+    '''
 
     targetStrLen = len(targetStr)
     if mode == 0:
@@ -269,8 +324,10 @@ def hasSubStr(targetStr:str, thisStr:str, mode:int=0) -> bool:
 
 
 def hasAllowedChars(thisStr:str, allowedChars:str) -> bool:
-    # Function checks if thisStr ONLY has allowedChars in it.
-    # Returns true if it does, false if not
+    '''
+        Function checks if thisStr ONLY has allowedChars in it.
+        Returns true if it does, false if not
+    '''
     for char in thisStr:
         if char not in allowedChars:
             return 0
@@ -278,7 +335,8 @@ def hasAllowedChars(thisStr:str, allowedChars:str) -> bool:
 
 
 def getSettingArgType(arg:str, prevArgType:int) -> SettingArgTypes:
-    # Function looks at Argument to determin the type, then returns the type
+    '''Function looks at Argument to determin the type, then returns the type
+    '''
     allowedCharsCompact = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXYZ"
 
     if hasSubStr('-', arg, 1) != 1:
@@ -299,10 +357,10 @@ def getSettingArgType(arg:str, prevArgType:int) -> SettingArgTypes:
     return SettingArgTypes.LONG
 
 
-def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSettings:
+def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None) -> ArgumentSettings:
     '''
         This function gets the enviroment arguments and processes them to a more friendly form.
-        It should (TODO) return the settings themself
+        It should return the settings themself
     '''
     '''
         -=-= Little note =-=-
@@ -322,7 +380,7 @@ def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSetti
         - Electrenator 
     '''
 
-    settings = ArgumentSettings(argsSettingsUsed)
+    settings = ArgumentSettings(argsSettingsUsed, programName)
 
     # Look and get for argument types
     argHasType = [SettingArgTypes.CALLED_FILE_PATH]
@@ -343,7 +401,6 @@ def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSetti
           argHasType[-1] == SettingArgTypes.LONG_COMPLEX or 
           argHasType[-1] == SettingArgTypes.COMPACT):
             isArgTrigUsed = settings.isUsed(argsEnv[counter], argHasType[counter])
-            print(argsEnv[counter], "[isUsed]", isArgTrigUsed)
 
             if isArgTrigUsed == 0:
                 # TODO: Add custom error
@@ -353,8 +410,6 @@ def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSetti
         if argHasType[-1] == SettingArgTypes.INVAL:
             # TODO: Add custom error
             raise Exception # Invalid cli input setting format detected
-
-    print(argHasType)
 
     # Set settings in settings class to return
     for argNumber in range(len(argsEnv)):
@@ -378,8 +433,11 @@ def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSetti
                 
 
             # Store arg setting data
-            print(thisArgName, thisArgType)
             if thisArgName != None:
+                if (thisArgName ==
+                  settings.varAvailable[settings.LOCATION_HELP][settings.VarOrder.settingName]):
+                    settings.showHelp()
+
                 if thisArgType == SettingArgTypes.LONG_COMPLEX_CHILD:
                     # Set complex value
                     settings.setVal(thisArgName, argsEnv[argNumber])
@@ -392,17 +450,13 @@ def getArgSettings(argsEnv:list, argsSettingsUsed:list == None) -> ArgumentSetti
             else:
                 raise Exception # All Args should have name at this point
 
-
-    print(settings.activeSettings)
-
-    for i in settings.activeSettings:
-        print(i, settings.getVal(i))
-
     return settings
+
 
 def main(argVariables:SettingArgTypes):
     # Set variables that are global (mostly for writing not neded for reading)
     global timeStart
+    END_DOTS = "...    "
 
     # Get user input
     try:
@@ -451,7 +505,7 @@ def main(argVariables:SettingArgTypes):
             tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
 
             # Extract currently processing zip file
-            print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=printEnd())
+            print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=END_DOTS)
             with zipFile(allZips[i], 'r') as zip:
                 try:
                     zip.extractall(tempCurrentDir)
@@ -480,7 +534,7 @@ def main(argVariables:SettingArgTypes):
 
                 # Rezip extracted zip if something changed
                 if didJsonsChange == 1:
-                    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=printEnd())
+                    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=END_DOTS)
                     with zipFile(allZips[i], 'w') as zip:
                         try:
                             for j in os.listdir(tempCurrentDir):
@@ -492,13 +546,13 @@ def main(argVariables:SettingArgTypes):
                     print('done!')
 
             # Remove temp dir for zip
-            print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=printEnd())
+            print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=END_DOTS)
             shutil.rmtree(tempCurrentDir)
             print('done!')
 
 
         # Remove temp dir fully
-        print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=printEnd())
+        print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=END_DOTS)
         try:
             os.rmdir(tempDir)
             print('done!')
@@ -526,11 +580,13 @@ def main(argVariables:SettingArgTypes):
 if __name__ == '__main__':
     print("Variables ({}): {}".format(len(sys.argv), str(sys.argv)))
 
-    argSettings = getArgSettings(sys.argv, [
+    argSettings = getArgSettings(sys.argv, "JSONsInZIPsEditor", [
         # Entry as: [trigger, settingName, description, is complex bool (0 if unset), list of allowed entries (only with complex bool. 0 if unset)]
         ["-check-only", "check-only", "Only validate json files and make no changes", 1],
         ["v", "verbose", "Verbose/ tell what is going on"],
     ])
+
+    print(argSettings.activeSettings)
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
