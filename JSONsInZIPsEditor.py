@@ -180,6 +180,7 @@ def jsonChangeValue(file, key, value) -> int:
         Reads specified json file, changes it and saves that change
         Returns hasDataChanged bool (1 if changed 0 if has not)
     '''
+
     print(f'{timeStamp(timeStart)} Changing "{key}" to '+str(value).replace("'",'"')+f' in "{file}"', end=END_DOTS)
 
     # Read data
@@ -202,9 +203,9 @@ def jsonChangeValue(file, key, value) -> int:
     dataAltered, totalChanges = searchAndReplace(data, key, value)
     hasDataChanged = 1 if totalChanges > 0 else 0
 
-    # Rewrite data if changed
+    # Rewrite data if changed and allowed
     # (truncates/removes existing data in file)
-    if hasDataChanged != 0:
+    if (hasDataChanged != 0 and not argSettings.getVal("check-only")):
         if useEncoding != None:
             with open(file, 'w', encoding=useEncoding) as f:
                 try:
@@ -218,7 +219,9 @@ def jsonChangeValue(file, key, value) -> int:
                 finally:
                     f.close()
 
-    print('done!', '(changed {} keys)'.format(totalChanges) if hasDataChanged == 1 else '(no change)')
+    print('done!',
+        '(changed {} keys)'.format(totalChanges) if hasDataChanged == 1 else '(no change)'
+    )
     return hasDataChanged
 
 
@@ -508,9 +511,9 @@ def processZips(tempDir:str, allZips:list, inputKey:str, inputValue) -> None:
                     failed.append(["changing json", allJsonFiles[j], type(e).__name__, str(e)])
 
             # Rewrite extracted zip if something changed
-            if didSomethingChange == 1:
+            if (didSomethingChange == 1 and not argSettings.getVal("check-only")):
                 print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=END_DOTS)
-                writeZip(allZips[i], tempCurrentDir)
+                writeZip(allZips[i], tempCurrentDir) # Only done if writing permitted
 
         # Remove temp dir for zip
         print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=END_DOTS)
@@ -523,7 +526,7 @@ def delDir(dirPath:str) -> None:
         os.rmdir(dirPath)
         print('done!')
     except OSError as e:
-        if e.errno == 41:
+        if (e.errno == 41 or e.errno == 39):
             # Direcory not empty. Removing it with remaining tree
             shutil.rmtree(dirPath)
             print('done!')
@@ -551,7 +554,7 @@ def printFailedEndMessage(errorList):
             print(f'\tGot {errorList[i+1][2]} error "{errorList[i+1][3]}" while {errorList[i+1][0]} file "{errorList[i+1][1]}"\n')
 
 
-def main(argVariables:SettingArgTypes):
+def main():
     # Set variables that are global (mostly for writing not needed for reading)
     global timeStart
 
@@ -607,9 +610,8 @@ if __name__ == '__main__':
 
     print(argSettings.activeSettings)
 
-    exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
     END_DOTS = "...    "
     failed = [['Operation', 'File', 'Error type', 'Error value']]
 
-    main(argSettings)
+    main()
