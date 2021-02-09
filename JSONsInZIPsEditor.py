@@ -13,7 +13,7 @@ from enum import IntEnum, auto # Needs python 3.4+
 class SettingArgTypes(IntEnum):
         '''Argument types used for remembering what input arguments is what.
         '''
-        INVAL = 0 # Giberish
+        INVAL = 0 # Gibberish
         CALLED_FILE_PATH = auto() # First argument (executed file)
         COMPACT = auto() # -v or -vbr
         LONG = auto() # --help
@@ -107,12 +107,12 @@ class ArgumentSettings(object):
     def showHelp(self) -> None:
         '''This function generates and shows the help info menu
         '''
-        # TODO: May be great to sort the output alphabaticly and in type (long/ short)
+        # TODO: May be great to sort the output alphabetically and type based (long/ short)
 
         # Show help list info
         print("\nHelp information menu of {}\n".format(self.NAME))
 
-        # Go threw used variables and show them in niceish format
+        # Go threw used variables and show them in a nice format
         # Ignore the first entry (CALLED_FILE_PATH)
         for var in self.varAvailable[1:]:
             infoString = "\t" # Base string
@@ -128,7 +128,7 @@ class ArgumentSettings(object):
             # Print formatted string
             print("{}\t{}".format(infoString, var[self.VarOrder.desc]))
 
-            # Print extra info about LONG's child posibilities (TODO)
+            # TODO: Maybe print extra info about LONG's child possibilities
             # TODO: add print("\t └ Supports arguments")
             # TODO: print("\t └ Supports following arguments;")
         
@@ -139,7 +139,7 @@ def searchDirFor(directory, startsW, endsW) -> list:
     ''' 
         Searches recursively in the specified directory for files that start with 
         "startW" and end with "endsW".
-        Returns list of specefied files
+        Returns list of specified files
     '''
     foundTarget = []
 
@@ -244,7 +244,7 @@ def searchAndReplace(var, searchKey, newValue, changes:int = 0):
                 changes += newChanges
         return var, changes
     else:
-        raise TypeError('Input not a dict or list (the only dicts and lists are suported)')
+        raise TypeError('Input not a dict or list (the only dicts and lists are supported)')
 
 
 def timeStamp(timeStart) -> str:
@@ -256,7 +256,7 @@ def timeStamp(timeStart) -> str:
 
 
 def isValidJSON(data) -> bool:
-    ''' This funciton checks if data is valid json. Returns true if true otherwise false
+    ''' This function checks if data is valid json. Returns true if true otherwise false
     '''
     try:
         json.loads(data)
@@ -266,7 +266,7 @@ def isValidJSON(data) -> bool:
 
 
 def getInputJSON():
-    syntaxExceptions = ("true", "false", "null") # For allowing these as inputs even if capitalised
+    syntaxExceptions = ("true", "false", "null") # For allowing these as inputs even if capitalized
 
     inputKey = input('Input JSON key: ').replace("'",'"')
     inputValue = input('Input new JSON value: ').replace("'",'"')
@@ -358,7 +358,7 @@ def getSettingArgType(arg:str, prevArgType:int) -> SettingArgTypes:
 
 def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None) -> ArgumentSettings:
     '''
-        This function gets the enviroment arguments and processes them to a more friendly form.
+        This function gets the environment arguments and processes them to a more friendly form.
         It should return the settings themself
     '''
     '''
@@ -491,24 +491,24 @@ def processZips(tempDir:str, allZips:list, inputKey:str, inputValue) -> None:
         exctractZip(allZips[i], tempCurrentDir)
 
         # Get JSON files of extracted zip
-        allJsons = searchDirFor(tempCurrentDir, '', '.json')
-        lenAllJsons = len(allJsons)
-        displayArray(allJsons, f'Found {lenAllJsons} json'+ ('s' if lenAllJsons != 1 else ''))
+        allJsonFiles = searchDirFor(tempCurrentDir, '', '.json')
+        lenallJsonFiles = len(allJsonFiles)
+        displayArray(allJsonFiles, f'Found {lenallJsonFiles} json'+ ('s' if lenallJsonFiles != 1 else ''))
 
-        if lenAllJsons > 0:
-            # Look threw all JSONs and replace specefied thing
-            didJsonsChange = 0
-            for j in range(lenAllJsons):
+        if lenallJsonFiles > 0:
+            # Look threw all JSON files and replace specified thing
+            didSomethingChange = 0
+            for j in range(lenallJsonFiles):
                 try:
-                    hasJsonChanged = jsonChangeValue(allJsons[j], inputKey, inputValue)
+                    hasJsonChanged = jsonChangeValue(allJsonFiles[j], inputKey, inputValue)
                     if hasJsonChanged == 1:
-                        didJsonsChange = 1
+                        didSomethingChange = 1
                 except Exception as e:
                     print("failed!")
-                    failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
+                    failed.append(["changing json", allJsonFiles[j], type(e).__name__, str(e)])
 
-            # Rezip extracted zip if something changed
-            if didJsonsChange == 1:
+            # Rewrite extracted zip if something changed
+            if didSomethingChange == 1:
                 print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=END_DOTS)
                 writeZip(allZips[i], tempCurrentDir)
 
@@ -552,7 +552,7 @@ def printFailedEndMessage(errorList):
 
 
 def main(argVariables:SettingArgTypes):
-    # Set variables that are global (mostly for writing not neded for reading)
+    # Set variables that are global (mostly for writing not needed for reading)
     global timeStart
 
     # Get user input
