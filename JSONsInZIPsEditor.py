@@ -133,7 +133,6 @@ class ArgumentSettings(object):
             # TODO: print("\t └ Supports following arguments;")
         
         print("\n") # New lines just to make it nice
-        exit(0) # Help message exit
 
 
 def searchDirFor(directory, startsW, endsW) -> list:
@@ -382,7 +381,7 @@ def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None)
 
     settings = ArgumentSettings(argsSettingsUsed, programName)
 
-    # Look and get for argument types
+    # Look for argument types
     argHasType = [SettingArgTypes.CALLED_FILE_PATH]
     counter = 1
     for arg in argsEnv[1:]:
@@ -412,8 +411,13 @@ def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None)
             raise Exception # Invalid cli input setting format detected
 
     # Set settings in settings class to return
-    for argNumber in range(len(argsEnv)):
-        thisArgType = argHasType[argNumber]
+    genSettingList(settings, argsEnv, argHasType)
+
+    return settings
+
+def genSettingList(settings:ArgumentSettings, args:list, argTypes:list) -> None:
+    for argNumber in range(len(args)):
+        thisArgType = argTypes[argNumber]
 
         if not thisArgType == SettingArgTypes.LONG_COMPLEX:
             if thisArgType == SettingArgTypes.CALLED_FILE_PATH:
@@ -423,12 +427,12 @@ def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None)
 
             elif thisArgType == SettingArgTypes.LONG_COMPLEX_CHILD:
                 # Complex argument; get complex(er) treatment
-                thisArgName = settings.getInfo(argsEnv[argNumber - 1][1:],
+                thisArgName = settings.getInfo(args[argNumber - 1][1:],
                   settings.VarOrder.settingName) # Get settingName of parent arg
                 
             else:
                 # Simple argument
-                thisArgName = settings.getInfo(argsEnv[argNumber][1:],
+                thisArgName = settings.getInfo(args[argNumber][1:],
                   settings.VarOrder.settingName) # Get settingName
                 
 
@@ -437,26 +441,119 @@ def getArgSettings(argsEnv:list, programName:str, argsSettingsUsed:list == None)
                 if (thisArgName ==
                   settings.varAvailable[settings.LOCATION_HELP][settings.VarOrder.settingName]):
                     settings.showHelp()
+                    exit(0) # Help message exit
 
                 if thisArgType == SettingArgTypes.LONG_COMPLEX_CHILD:
                     # Set complex value
-                    settings.setVal(thisArgName, argsEnv[argNumber])
+                    settings.setVal(thisArgName, args[argNumber])
                 elif thisArgType == SettingArgTypes.CALLED_FILE_PATH:
                     # Set CALLED_FILE_PATH value
-                    settings.setVal(thisArgName, argsEnv[argNumber])
+                    settings.setVal(thisArgName, args[argNumber])
                 else:
                     # Set other values
                     settings.setVal(thisArgName)
             else:
                 raise Exception # All Args should have name at this point
 
-    return settings
+
+def exctractZip(dirOfZip, targetDir) -> None:
+    with zipFile(dirOfZip, 'r') as zip:
+        try:
+            zip.extractall(targetDir)
+        except Exception as e:
+            failed.append(["extracting", dirOfZip, type(e).__name__, str(e)])
+        finally:
+            zip.close()
+    print('done!')
+
+
+def writeZip(dirOfZip, targetDir) -> None:
+    with zipFile(dirOfZip, 'w') as zip:
+        try:
+            for j in os.listdir(targetDir):
+                zip.write(os.path.join(
+                    targetDir, j), arcname=j)
+        except Exception as e:
+            failed.append(["zipping", os.path.join(
+                targetDir, j), type(e).__name__, str(e)])
+        finally:
+            zip.close()
+    print('done!')
+
+
+def processZips(tempDir:str, allZips:list, inputKey:str, inputValue) -> None:
+    for i in range(len(allZips)):
+        # Get temporary current directory
+        tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
+
+        # Extract currently processing zip file
+        print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=END_DOTS)
+        exctractZip(allZips[i], tempCurrentDir)
+
+        # Get JSON files of extracted zip
+        allJsons = searchDirFor(tempCurrentDir, '', '.json')
+        lenAllJsons = len(allJsons)
+        displayArray(allJsons, f'Found {lenAllJsons} json'+ ('s' if lenAllJsons != 1 else ''))
+
+        if lenAllJsons > 0:
+            # Look threw all JSONs and replace specefied thing
+            didJsonsChange = 0
+            for j in range(lenAllJsons):
+                try:
+                    hasJsonChanged = jsonChangeValue(allJsons[j], inputKey, inputValue)
+                    if hasJsonChanged == 1:
+                        didJsonsChange = 1
+                except Exception as e:
+                    print("failed!")
+                    failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
+
+            # Rezip extracted zip if something changed
+            if didJsonsChange == 1:
+                print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=END_DOTS)
+                writeZip(allZips[i], tempCurrentDir)
+
+        # Remove temp dir for zip
+        print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=END_DOTS)
+        delDir(tempCurrentDir)
+        print('done!')
+
+
+def delDir(dirPath:str) -> None:
+    try:
+        os.rmdir(dirPath)
+        print('done!')
+    except OSError as e:
+        if e.errno == 41:
+            # Direcory not empty. Removing it with remaining tree
+            shutil.rmtree(dirPath)
+            print('done!')
+        else:
+            print('failed!')
+            failed.append(["removing", dirPath, type(e).__name__, str(e)])
+
+
+def genUniqueDirName(dirBaseName:str) -> str:
+    dirName = dirBaseName
+
+    while os.path.isdir(dirName) == 1:
+        print(f'{timeStamp(timeStart)} Diractory "{dirName}/" already exists, looking for new temp directory')
+        dirName += str(random.randint(0,9))
+
+    return dirName
+
+
+def printFailedEndMessage(errorList):
+    totalErrors = len(errorList)
+
+    if totalErrors > 1:
+        print('WITH ERROR{}{}'.format('S' if totalErrors == 1 else '', '=-'*4))
+        for i in range(totalErrors-1):
+            print(f'\tGot {errorList[i+1][2]} error "{errorList[i+1][3]}" while {errorList[i+1][0]} file "{errorList[i+1][1]}"\n')
 
 
 def main(argVariables:SettingArgTypes):
     # Set variables that are global (mostly for writing not neded for reading)
     global timeStart
-    END_DOTS = "...    "
 
     # Get user input
     try:
@@ -468,8 +565,7 @@ def main(argVariables:SettingArgTypes):
         print("")
         exit(0)
 
-
-    # Imput conformation
+    # Input conformation
     conf = getConformation(f'\nThe key "{inputKey}" will be set to '+str(inputValue).replace("'",'"')+'. This will result in:\n'+str(inputData).replace("'",'"')+'\n\nAre you sure this is what you want?')
 
     if conf == False:
@@ -477,102 +573,25 @@ def main(argVariables:SettingArgTypes):
         exit(0)
     print("\n")
 
-    # Start timer
-    timeStart = time.time()
-
-
-    # Get zips in current and lower dirs
+    # Set variables used for processing
+    timeStart = time.time() # Starts timer
     allZips = searchDirFor('./', '', '.zip')
     lenAllZips = len(allZips)
+    tempDir = genUniqueDirName('./temp')
+
     displayArray(allZips, f'Found {lenAllZips} zip'+ ('s' if lenAllZips != 1 else ''))
 
-
-    # Gets temporary directory
-    tempDir = './temp'
-    while os.path.isdir(tempDir) == 1:
-        print(f'{timeStamp(timeStart)} Diractory "{tempDir}/" already exists, looking for new temp directory')
-        tempDir += str(random.randint(0,9))
-
-
     # Processes all the zip files if found
-    failed = [['Operation', 'File', 'Error type', 'Error value']]
-
-    if lenAllZips > 0:
+    if len(allZips) > 0:
         print(f'{timeStamp(timeStart)} Using temporary directory: "{tempDir}/"')
-
-        for i in range(lenAllZips):
-            # Get temporary current directory
-            tempCurrentDir = os.path.join(tempDir, getFileName(allZips[i]))
-
-            # Extract currently processing zip file
-            print(f'\n{timeStamp(timeStart)} Extracting zip {i+1}: "{allZips[i]}" -> "{tempCurrentDir}/"', end=END_DOTS)
-            with zipFile(allZips[i], 'r') as zip:
-                try:
-                    zip.extractall(tempCurrentDir)
-                except Exception as e:
-                    failed.append(["extracting", allZips[i], type(e).__name__, str(e)])
-                finally:
-                    zip.close()
-            print('done!')
-
-            # Get JSON files of extracted zip
-            allJsons = searchDirFor(tempCurrentDir, '', '.json')
-            lenAllJsons = len(allJsons)
-            displayArray(allJsons, f'Found {lenAllJsons} json'+ ('s' if lenAllJsons != 1 else ''))
-
-            if lenAllJsons > 0:
-                # Look threw all JSONs and replace specefied thing
-                didJsonsChange = 0
-                for j in range(lenAllJsons):
-                    try:
-                        hasJsonChanged = jsonChangeValue(allJsons[j], inputKey, inputValue)
-                        if hasJsonChanged == 1:
-                            didJsonsChange = 1
-                    except Exception as e:
-                        print("failed!")
-                        failed.append(["changing json", allJsons[j], type(e).__name__, str(e)])
-
-                # Rezip extracted zip if something changed
-                if didJsonsChange == 1:
-                    print(f'{timeStamp(timeStart)} Writing: "{tempCurrentDir}/*" -> "{allZips[i]}"', end=END_DOTS)
-                    with zipFile(allZips[i], 'w') as zip:
-                        try:
-                            for j in os.listdir(tempCurrentDir):
-                                zip.write(os.path.join(tempCurrentDir, j), arcname=j)
-                        except Exception as e:
-                            failed.append(["zipping", os.path.join(tempCurrentDir, j), type(e).__name__, str(e)])
-                        finally:
-                            zip.close()
-                    print('done!')
-
-            # Remove temp dir for zip
-            print(f'{timeStamp(timeStart)} Removing: "{tempCurrentDir}"', end=END_DOTS)
-            shutil.rmtree(tempCurrentDir)
-            print('done!')
-
+        processZips(tempDir, allZips, inputKey, inputValue)
 
         # Remove temp dir fully
         print(f'\n{timeStamp(timeStart)} Removing the temp directory: "{tempDir}"', end=END_DOTS)
-        try:
-            os.rmdir(tempDir)
-            print('done!')
-        except OSError as e:
-            if e.errno == 41:
-                # Direcory not empty. Removing it with remaining tree
-                shutil.rmtree(tempDir)
-            else:
-                print('failed!')
-                failed.append(["removing", tempDir, type(e).__name__, str(e)])
+        delDir(tempDir)
 
     print('\n'*2+'-='*5, 'SCRIPT FINISHED', '=-'*5+'\n')
-    lenFailed = len(failed)
-
-    if lenFailed > 1:
-        temp = 'S' if lenFailed == 1 else ''
-        print(f'WITH ERROR{temp}'+'=-'*4)
-        for i in range(lenFailed-1):
-            print(f'\tGot {failed[i+1][2]} error "{failed[i+1][3]}" while {failed[i+1][0]} file "{failed[i+1][1]}"\n')
-
+    printFailedEndMessage(failed)
     print(f'\nExecution of script took: {round(time.time()-timeStart, 6)} seconds\n')
 
 
@@ -590,4 +609,7 @@ if __name__ == '__main__':
 
     exit(0)
     timeStart = None # Will be set in main() but is a global definition for other functions
+    END_DOTS = "...    "
+    failed = [['Operation', 'File', 'Error type', 'Error value']]
+
     main(argSettings)
