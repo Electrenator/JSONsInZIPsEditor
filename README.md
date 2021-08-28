@@ -1,4 +1,5 @@
 # JSONs in ZIPs editor
+**Deprecated** (See [Issue #8](../../issues/8))  
 Like the description of this repository says is the purpose of this program to change JSON files inside ZIP files way faster than Humans can by hand. This with the hope of saving hours of manually editing ZIPs, like when a game updates and you only have to change the version numbers of mod ZIPs, which for example is being done with [BeatSaber mods](https://github.com/RedBrumbler/BMBFCustomSabers) when the changes to the game allow for this.
 
 
